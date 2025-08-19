@@ -265,6 +265,450 @@ function responseUnauthorized(url) {
   });
 }
 
+
+function githubInterface() {
+	const htmlPage = `
+  <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xget URL 转换器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1c2f 0%, #2b2c3c 100%);
+            color: #e6e9f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(to right, #6a7eff, #9d7bff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a2a9c5;
+            line-height: 1.6;
+        }
+
+        .converter-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-bottom: 40px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #a2a9c5;
+            font-size: 1.1rem;
+        }
+
+        .input-container {
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: rgba(0, 2, 29, 0.7);
+            border: 1px solid rgba(90, 100, 150, 0.4);
+            border-radius: 10px;
+            color: #e6e9f0;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #6a7eff;
+            box-shadow: 0 0 0 3px rgba(106, 126, 255, 0.2);
+        }
+
+        .detection-info {
+            font-size: 0.9rem;
+            margin-top: 8px;
+            color: #7d87a8;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detection-info i {
+            color: #6a7eff;
+        }
+
+        .result-container {
+            display: flex;
+            background: rgba(0, 2, 29, 0.7);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(90, 100, 150, 0.4);
+            opacity: 0;
+            height: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .result-container.visible {
+            opacity: 1;
+            height: auto;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        #converted-url {
+            flex-grow: 1;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: transparent;
+            border: none;
+            color: #e6e9f0;
+            outline: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, #6a7eff 0%, #9d7bff 100%);
+            color: white;
+            border: none;
+            padding: 0 30px;
+            font-size: 1.1rem;
+            cursor: button;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 130px;
+        }
+
+        .copy-btn:hover {
+            background: linear-gradient(135deg, #5a6df5 0%, #8d6bf5 100%);
+            box-shadow: 0 0 15px rgba(106, 126, 255, 0.4);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.98);
+        }
+
+        .loading-icon {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .output-label {
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #a2a9c5;
+            font-size: 1.1rem;
+        }
+
+        .output-label.visible {
+            opacity: 1;
+            height: auto;
+        }
+
+        footer {
+            width: 100%;
+            text-align: center;
+            color: #7d87a8;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            padding: 20px;
+            position: relative;
+            bottom: 0;
+            left: 0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .converter-card {
+                padding: 20px;
+            }
+
+            .result-container {
+                flex-direction: column;
+            }
+
+            .copy-btn {
+                padding: 12px;
+                width: 100%;
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Xget URL 转换器</h1>
+            <p class="subtitle">将支持平台的 URL 转换为加速的 Xget 格式</p>
+        </header>
+
+        <main class="converter-card">
+            <div class="input-group">
+                <label for="original-url">原始 URL</label>
+                <div class="input-container">
+                    <input type="url" id="original-url" placeholder="https://github.com/user/repo..." autocomplete="off">
+                </div>
+                <div class="detection-info" id="platform-info">
+                    <i class="fas fa-magic"></i>
+                    <span>正在加载支持的平台...</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="converted-url" class="output-label" id="output-label">转换后的 Xget URL</label>
+                <div class="result-container" id="result-container">
+                    <input type="text" id="converted-url" readonly>
+                    <button id="copy-button" class="copy-btn" disabled>
+                        <i class="fas fa-copy"></i>
+                        <span class="copy-text">复制到剪贴板</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer>
+        <div>Xget URL 转换工具</div>
+        <div>版权所有 © 2025。保留所有权利。</div>
+    </footer>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle"></i>
+        <span>已复制到剪贴板！</span>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let platformsData = {};
+            const originalUrlInput = document.getElementById('original-url');
+            const convertedUrlInput = document.getElementById('converted-url');
+            const copyButton = document.getElementById('copy-button');
+            const toast = document.getElementById('toast');
+            const resultContainer = document.getElementById('result-container');
+            const outputLabel = document.getElementById('output-label');
+            const platformInfo = document.getElementById('platform-info');
+
+            // 获取当前域名
+            const currentOrigin = window.location.origin;
+
+            // 动态加载平台数据
+            function loadPlatforms() {
+                platformInfo.innerHTML = '<i class="fas fa-circle-notch loading-icon"></i> 正在加载支持的平台列表...';
+
+                fetch('/platforms')
+                    .then(response => response.json())
+                    .then(data => {
+                        platformsData = data;
+                        updatePlatformInfo();
+                    })
+                    .catch(error => {
+                        console.error('平台数据加载失败:', error);
+                        platformInfo.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 平台数据加载失败，请刷新页面重试';
+                        platformsData = {};
+                    });
+            }
+
+            // 更新平台信息显示
+            function updatePlatformInfo() {
+                const platforms = Object.keys(platformsData);
+                if (platforms.length === 0) {
+                    platformInfo.innerHTML = '<i class="fas fa-exclamation-circle"></i> 未加载任何平台数据';
+                    return;
+                }
+
+                const platformList = platforms.join(', ').toUpperCase();
+                platformInfo.innerHTML = \`<i class="fas fa-check-circle"></i> 已加载 \${platforms.length} 个平台: \${platformList}\`;
+            }
+
+            // 自动检测平台并转换URL
+            function detectAndConvert() {
+                const url = originalUrlInput.value.trim();
+
+                if (url) {
+                    resultContainer.classList.add('visible');
+                    outputLabel.classList.add('visible');
+                    copyButton.disabled = false;
+                } else {
+                    resultContainer.classList.remove('visible');
+                    outputLabel.classList.remove('visible');
+                    convertedUrlInput.value = '';
+                    copyButton.disabled = true;
+                    return;
+                }
+
+                if (Object.keys(platformsData).length === 0) {
+                    convertedUrlInput.value = '平台数据未加载，请稍后重试';
+                    return;
+                }
+
+                let prefix = null;
+                for (const [key, domain] of Object.entries(platformsData)) {
+                    if (url.startsWith(domain)) {
+                        prefix = key;
+                        break;
+                    }
+                }
+
+                if (prefix) {
+                    const path = url.substring(platformsData[prefix].length);
+                    convertedUrlInput.value = \`\${currentOrigin}/\${prefix}/\${path}\`;
+                } else {
+                    convertedUrlInput.value = '无法识别的平台URL';
+                }
+            }
+
+            // 添加输入事件监听
+            originalUrlInput.addEventListener('input', detectAndConvert);
+
+            // 复制功能
+            copyButton.addEventListener('click', function() {
+                if (!convertedUrlInput.value || convertedUrlInput.value.includes('无法识别') ||
+                    convertedUrlInput.value.includes('未加载')) {
+                    showToast('没有有效内容可复制', 'error');
+                    return;
+                }
+
+                convertedUrlInput.select();
+                convertedUrlInput.setSelectionRange(0, 99999); // 移动设备支持
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showToast('已复制到剪贴板！', 'success');
+
+                        // 添加成功动画
+                        const icon = this.querySelector('i');
+                        const text = this.querySelector('.copy-text');
+
+                        icon.className = 'fas fa-check';
+                        text.textContent = '已复制';
+
+                        setTimeout(() => {
+                            icon.className = 'fas fa-copy';
+                            text.textContent = '复制到剪贴板';
+                        }, 2000);
+                    } else {
+                        showToast('复制失败，请手动复制', 'error');
+                    }
+                } catch (err) {
+                    showToast('复制失败，请手动复制', 'error');
+                }
+            });
+
+            // 显示通知
+            function showToast(message, type = 'success') {
+                toast.innerHTML = \`
+                    <i class="fas \${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                    <span>\${message}</span>
+                \`;
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            // 初始化：加载平台数据
+            loadPlatforms();
+        });
+    </script>
+</body>
+</html>
+  `;
+	return htmlPage;
+}
+
 /**
  * Handles incoming requests with caching, retries, and security measures
  * @param {Request} request - The incoming request
@@ -281,7 +725,21 @@ async function handleRequest(request, env, ctx) {
 
     const monitor = new PerformanceMonitor();
 
-    // Handle Docker API version check
+	const origin = url.origin; // 获取当前域名
+
+	if (url.pathname === '/platforms') {
+		  return new Response(JSON.stringify(CONFIG.PLATFORMS), {
+			  headers: { 'Content-Type': 'application/json' }
+		  });
+	}
+
+	if (url.pathname === '/' || url.pathname === '') {
+		  return new Response(githubInterface(), {
+			  headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+		  });
+	}
+
+	  // Handle Docker API version check
     if (isDocker && (url.pathname === '/v2/' || url.pathname === '/v2')) {
       const headers = new Headers({
         'Docker-Distribution-Api-Version': 'registry/2.0',
@@ -289,12 +747,6 @@ async function handleRequest(request, env, ctx) {
       });
       addSecurityHeaders(headers);
       return new Response('{}', { status: 200, headers });
-    }
-
-    // Redirect root path or invalid platforms to GitHub repository
-    if (url.pathname === '/' || url.pathname === '') {
-      const HOME_PAGE_URL = 'https://github.com/xixu-me/Xget';
-      return Response.redirect(HOME_PAGE_URL, 302);
     }
 
     const validation = validateRequest(request, url, config);
@@ -326,15 +778,13 @@ async function handleRequest(request, env, ctx) {
       return pathB.length - pathA.length;
     });
 
-    platform =
-      sortedPlatforms.find(key => {
+    platform = sortedPlatforms.find(key => {
         const expectedPrefix = `/${key.replace('-', '/')}/`;
         return effectivePath.startsWith(expectedPrefix);
       }) || effectivePath.split('/')[1];
 
     if (!platform || !config.PLATFORMS[platform]) {
-      const HOME_PAGE_URL = 'https://github.com/xixu-me/Xget';
-      return Response.redirect(HOME_PAGE_URL, 302);
+      return Response.redirect(origin, 302);
     }
 
     // Transform URL based on platform using unified logic
