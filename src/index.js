@@ -432,7 +432,7 @@ function githubInterface() {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-width: 130px;
+            min-width: 180px;
         }
 
         .copy-btn:hover {
@@ -642,7 +642,7 @@ function githubInterface() {
 
                 if (prefix) {
                     const path = url.substring(platformsData[prefix].length);
-                    convertedUrlInput.value = \`\${currentOrigin}/\${prefix}/\${path}\`;
+                    convertedUrlInput.value = \`\${currentOrigin}/\${prefix}\${path}\`;
                 } else {
                     convertedUrlInput.value = '无法识别的平台URL';
                 }
