@@ -265,6 +265,7 @@ function responseUnauthorized(url) {
   });
 }
 
+
 function githubInterface() {
 	const htmlPage = `
   <!DOCTYPE html>
@@ -310,7 +311,7 @@ function githubInterface() {
             padding: 20px;
             width: 100%;
             max-width: 600px;
-            position: relative; /* 新增: 为GitHub图标定位做准备 */
+            position: relative;
         }
 
         h1 {
@@ -424,7 +425,7 @@ function githubInterface() {
             background: linear-gradient(135deg, #6a7eff 0%, #9d7bff 100%);
             color: white;
             border: none;
-            padding: 0 30px;
+            padding: 0 10px;
             font-size: 1.1rem;
             cursor: button;
             transition: all 0.3s ease;
@@ -432,7 +433,7 @@ function githubInterface() {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-width: 180px;
+            min-width: 160px;
         }
 
         .copy-btn:hover {
@@ -505,33 +506,92 @@ function githubInterface() {
             transform: translateX(-50%) translateY(0);
         }
 
-        /* 新增: GitHub图标样式 */
+        /* 新增：GitHub按钮样式（右上角） */
         .github-corner {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #a2a9c5;
-            font-size: 1.8rem;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            overflow: hidden;
+            z-index: 1000;
+            transform: translate(30%, -30%) rotate(45deg);
             transition: all 0.3s ease;
-            z-index: 10;
         }
 
         .github-corner:hover {
-            transform: scale(1.1);
-            color: #e6e9f0;
+            transform: translate(0, 0) rotate(0deg);
         }
 
-        /* 新增: Footer链接样式 */
-        .footer-link {
-            color: #6a7eff;
+        .github-corner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 80px 80px;
+            border-color: transparent transparent rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        .github-corner:hover::before {
+            border-color: transparent transparent rgba(255, 255, 255, 0.3) transparent;
+            border-width: 0 0 100px 100px;
+        }
+
+        .github-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            color: #1a1c2f;
+            background-color: white;
+            border-radius: 50%;
+            transform: rotate(-45deg);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
             text-decoration: none;
-            transition: color 0.3s ease;
-            margin-left: 5px;
         }
 
-        .footer-link:hover {
-            color: #9d7bff;
-            text-decoration: underline;
+        .github-corner:hover .github-link {
+            transform: rotate(0deg) scale(1.1);
+            box-shadow: 0 0 25px rgba(106, 126, 255, 0.6);
+        }
+
+        .cat-icon {
+            position: relative;
+            width: 30px;
+            height: 30px;
+        }
+
+        /* 添加小猫剪影效果 */
+        .cat-icon::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            width: 8px;
+            height: 8px;
+            background-color: #1a1c2f;
+            border-radius: 50%;
+            box-shadow: 12px 0 0 #1a1c2f;
+        }
+
+        .cat-icon::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 7px;
+            width: 16px;
+            height: 8px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            background-color: #1a1c2f;
         }
 
         @media (max-width: 600px) {
@@ -553,23 +613,28 @@ function githubInterface() {
                 min-width: auto;
             }
 
-            /* 响应式调整：在小屏幕上调整GitHub图标位置 */
+            /* 移动设备上隐藏部分视觉效果 */
             .github-corner {
-                top: 15px;
-                right: 15px;
-                font-size: 1.5rem;
+                width: 80px;
+                height: 80px;
+            }
+
+            .github-corner:hover {
+                transform: translate(30%, -30%) rotate(45deg);
             }
         }
     </style>
 </head>
 <body>
+    <!-- 固定在右上角的GitHub按钮 -->
+    <div class="github-corner">
+        <a href="https://github.com/BadKid90s/Xget/" target="_blank" class="github-link">
+            <div class="cat-icon"></div>
+        </a>
+    </div>
+
     <div class="container">
         <header>
-            <!-- 新增: 右上角GitHub图标链接 -->
-            <a href="https://github.com/BadKid90s/Xget/" target="_blank" class="github-corner">
-                <i class="fab fa-github"></i>
-            </a>
-
             <h1>Xget URL 转换器</h1>
             <p class="subtitle">将支持平台的 URL 转换为加速的 Xget 格式</p>
         </header>
@@ -600,9 +665,9 @@ function githubInterface() {
     </div>
 
     <footer>
+        <div>更多用法请参考<a href="https://github.com/BadKid90s/Xget/" target="_blank" class="footer-link">GitHub</a></div>
         <div>Xget URL 转换工具</div>
-        <div>版权所有 © 2025。保留所有权利。更多用法请参考
-            <a href="https://github.com/BadKid90s/Xget/" target="_blank" class="footer-link">GitHub</a>
+        <div>版权所有 © 2025。保留所有权利。
         </div>
     </footer>
 
@@ -630,12 +695,12 @@ function githubInterface() {
                 platformInfo.innerHTML = '<i class="fas fa-circle-notch loading-icon"></i> 正在加载支持的平台列表...';
 
                 fetch('/platforms')
-                    .then(response => response.json())
-                    .then(data => {
+                   .then(response => response.json())
+                   .then(data => {
                         platformsData = data;
                         updatePlatformInfo();
                     })
-                    .catch(error => {
+                   .catch(error => {
                         console.error('平台数据加载失败:', error);
                         platformInfo.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 平台数据加载失败，请刷新页面重试';
                         platformsData = {};
@@ -732,7 +797,7 @@ function githubInterface() {
             // 显示通知
             function showToast(message, type = 'success') {
                 toast.innerHTML = \`
-                    <i class="fas \${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                    <i class="fas \${type === 'success'?'success-circle' : 'exclamation-circle'}"></i>
                     <span>\${message}</span>
                 \`;
                 toast.classList.add('show');
