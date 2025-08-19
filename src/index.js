@@ -265,7 +265,6 @@ function responseUnauthorized(url) {
   });
 }
 
-
 function githubInterface() {
 	const htmlPage = `
   <!DOCTYPE html>
@@ -311,6 +310,7 @@ function githubInterface() {
             padding: 20px;
             width: 100%;
             max-width: 600px;
+            position: relative; /* 新增: 为GitHub图标定位做准备 */
         }
 
         h1 {
@@ -505,6 +505,35 @@ function githubInterface() {
             transform: translateX(-50%) translateY(0);
         }
 
+        /* 新增: GitHub图标样式 */
+        .github-corner {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #a2a9c5;
+            font-size: 1.8rem;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .github-corner:hover {
+            transform: scale(1.1);
+            color: #e6e9f0;
+        }
+
+        /* 新增: Footer链接样式 */
+        .footer-link {
+            color: #6a7eff;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            margin-left: 5px;
+        }
+
+        .footer-link:hover {
+            color: #9d7bff;
+            text-decoration: underline;
+        }
+
         @media (max-width: 600px) {
             h1 {
                 font-size: 2.2rem;
@@ -523,12 +552,24 @@ function githubInterface() {
                 width: 100%;
                 min-width: auto;
             }
+
+            /* 响应式调整：在小屏幕上调整GitHub图标位置 */
+            .github-corner {
+                top: 15px;
+                right: 15px;
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
+            <!-- 新增: 右上角GitHub图标链接 -->
+            <a href="https://github.com/BadKid90s/Xget/" target="_blank" class="github-corner">
+                <i class="fab fa-github"></i>
+            </a>
+
             <h1>Xget URL 转换器</h1>
             <p class="subtitle">将支持平台的 URL 转换为加速的 Xget 格式</p>
         </header>
@@ -560,7 +601,9 @@ function githubInterface() {
 
     <footer>
         <div>Xget URL 转换工具</div>
-        <div>版权所有 © 2025。保留所有权利。</div>
+        <div>版权所有 © 2025。保留所有权利。更多用法请参考
+            <a href="https://github.com/BadKid90s/Xget/" target="_blank" class="footer-link">GitHub</a>
+        </div>
     </footer>
 
     <div id="toast" class="toast">
