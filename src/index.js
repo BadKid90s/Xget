@@ -551,7 +551,7 @@ function githubInterface() {
                     <input type="text" id="converted-url" readonly>
                     <button id="copy-button" class="copy-btn" disabled>
                         <i class="fas fa-copy"></i>
-                        <span class="copy-text">复制到剪贴板</span>
+                        <span class="copy-text">复制</span>
                     </button>
                 </div>
             </div>
@@ -565,7 +565,7 @@ function githubInterface() {
 
     <div id="toast" class="toast">
         <i class="fas fa-check-circle"></i>
-        <span>已复制到剪贴板！</span>
+        <span>已复制！</span>
     </div>
 
     <script>
@@ -608,7 +608,7 @@ function githubInterface() {
                 }
 
                 const platformList = platforms.join(', ').toUpperCase();
-                platformInfo.innerHTML = \`<i class="fas fa-check-circle"></i> 已加载 \${platforms.length} 个平台: \${platformList}\`;
+                platformInfo.innerHTML = \`<i class="fas fa-check-circle"></i> 已加载 \${platforms.length} 个平台.\`;
             }
 
             // 自动检测平台并转换URL
@@ -665,7 +665,7 @@ function githubInterface() {
                 try {
                     const successful = document.execCommand('copy');
                     if (successful) {
-                        showToast('已复制到剪贴板！', 'success');
+                        showToast('已复制！', 'success');
 
                         // 添加成功动画
                         const icon = this.querySelector('i');
@@ -676,7 +676,7 @@ function githubInterface() {
 
                         setTimeout(() => {
                             icon.className = 'fas fa-copy';
-                            text.textContent = '复制到剪贴板';
+                            text.textContent = '复制';
                         }, 2000);
                     } else {
                         showToast('复制失败，请手动复制', 'error');
