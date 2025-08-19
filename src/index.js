@@ -424,7 +424,7 @@ function githubInterface() {
             background: linear-gradient(135deg, #6a7eff 0%, #9d7bff 100%);
             color: white;
             border: none;
-            padding: 0 30px;
+            padding: 0 10px;
             font-size: 1.1rem;
             cursor: button;
             transition: all 0.3s ease;
@@ -432,7 +432,7 @@ function githubInterface() {
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-width: 180px;
+            min-width: 160px;
         }
 
         .copy-btn:hover {
