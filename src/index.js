@@ -454,6 +454,9 @@ async function handleRequest(request, env, _ctx) {
         // Handle 401 authentication challenge for public repositories
         if (response.status === 401) {
           const authenticateStr = response.headers.get('WWW-Authenticate');
+          // Release the 401 response body so the connection can be reused
+          // for the token fetch and retry.
+          response.body?.cancel();
           if (authenticateStr) {
             try {
               const wwwAuthenticate = parseAuthenticate(authenticateStr);
@@ -472,14 +475,20 @@ async function handleRequest(request, env, _ctx) {
                     response = retryResponse;
                     break;
                   }
+                  // Token was obtained but the retry still failed.
+                  // Pass through the real upstream status (e.g. 404 not found,
+                  // 403 forbidden) instead of masking it as 401.
+                  if (retryResponse.status !== 401) {
+                    return retryResponse;
+                  }
                 }
               }
             } catch (error) {
               console.warn('Token fetch failed:', error);
             }
           }
-          // Pass through the upstream's real WWW-Authenticate so the Docker
-          // client can authenticate directly (e.g. for private repos).
+          // Token auth did not succeed; return the upstream's real 401 so the
+          // Docker client can authenticate directly (e.g. for private repos).
           return responseUnauthorized(url, authenticateStr);
         }
 
