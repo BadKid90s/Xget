@@ -1,5 +1,73 @@
 import { SELF } from 'cloudflare:test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeAll, afterAll } from 'vitest';
+
+/**
+ * Mock the global fetch so integration tests do not hit real upstream
+ * registries. The mock returns sensible registry v2 responses so the
+ * worker's routing / auth-retry logic can be exercised offline.
+ */
+const realFetch = globalThis.fetch;
+
+const mockFetch = vi.fn(async (input) => {
+  const url = typeof input === 'string' ? input : input.url;
+
+  // Token endpoint simulation: any request to a realm URL returns a token.
+  if (url.includes('/token') || url.includes('service=') || url.includes('auth')) {
+    return new Response(JSON.stringify({ token: 'mock-bearer-token' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Registry base /v2/ probe returns 401 with a WWW-Authenticate challenge.
+  if (url.endsWith('/v2/') || url.endsWith('/v2')) {
+    return new Response('{}', {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate':
+          'Bearer realm="https://auth.example.com/token",service="registry.example.com"'
+      }
+    });
+  }
+
+  // Manifest / blob / tags requests succeed with a minimal OCI manifest.
+  if (url.includes('/manifests/') || url.includes('/blobs/') || url.includes('/tags/list')) {
+    return new Response(
+      JSON.stringify({
+        schemaVersion: 2,
+        mediaType: 'application/vnd.docker.distribution.manifest.v2+json',
+        config: { mediaType: 'application/vnd.docker.container.image.v1+json', size: 1, digest: 'sha256:abc' },
+        layers: []
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/vnd.docker.distribution.manifest.v2+json',
+          'Docker-Content-Digest': 'sha256:abcdef'
+        }
+      }
+    );
+  }
+
+  // Upload endpoints return 202 Accepted.
+  if (url.includes('/blobs/uploads')) {
+    return new Response(null, {
+      status: 202,
+      headers: { Location: `${url}/uuid` }
+    });
+  }
+
+  return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+});
+
+beforeAll(() => {
+  globalThis.fetch = mockFetch;
+});
+
+afterAll(() => {
+  globalThis.fetch = realFetch;
+});
 
 describe('Container Registry Support', () => {
   describe('Docker API Version Check', () => {
@@ -46,11 +114,54 @@ describe('Container Registry Support', () => {
       // Should attempt to proxy to GHCR
       expect(response.status).not.toBe(400);
     });
+
+    it('should handle subdomain-prefixed requests', async () => {
+      const testUrl = 'https://ghcr.example.com/v2/nginxinc/nginx-unprivileged/manifests/latest';
+      const response = await SELF.fetch(testUrl, { method: 'HEAD' });
+
+      expect(response.status).not.toBe(400);
+    });
+
+    it('should strip a redundant registry domain prefix from the path', async () => {
+      const testUrl = 'https://ghcr.example.com/v2/ghcr.io/nginxinc/nginx-unprivileged/manifests/latest';
+      const response = await SELF.fetch(testUrl, { method: 'HEAD' });
+
+      expect(response.status).not.toBe(400);
+    });
+
+    it('should normalize Docker Hub official images to library/<name>', async () => {
+      const testUrl = 'https://docker.example.com/v2/nginx/manifests/latest';
+      const response = await SELF.fetch(testUrl, { method: 'HEAD' });
+
+      expect(response.status).not.toBe(400);
+    });
   });
 
   describe('Docker Authentication', () => {
     it('should pass through 401 authentication challenges', async () => {
-      // This test simulates an upstream 401 response which should be passed through
+      // Make the mock return a 401 for this specific private repo path.
+      const privateFetch = vi.fn(async (input) => {
+        const url = typeof input === 'string' ? input : input.url;
+        if (url.includes('/v2/private/repo/manifests')) {
+          return new Response('{}', {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'WWW-Authenticate':
+                'Bearer realm="https://auth.example.com/token",service="registry.example.com"'
+            }
+          });
+        }
+        if (url.includes('/token')) {
+          return new Response(JSON.stringify({ token: 'mock-token' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response('{}', { status: 404 });
+      });
+      globalThis.fetch = privateFetch;
+
       const testUrl = 'https://example.com/cr/ghcr/v2/private/repo/manifests/latest';
       const response = await SELF.fetch(testUrl, {
         headers: {
@@ -59,10 +170,11 @@ describe('Container Registry Support', () => {
       });
 
       // Should not convert 401 to 500 or other error codes
-      if (response.status === 401) {
-        // WWW-Authenticate header should be preserved
-        expect(response.headers.has('WWW-Authenticate') || response.status === 401).toBeTruthy();
-      }
+      expect(response.status).toBe(401);
+      expect(response.headers.has('WWW-Authenticate')).toBeTruthy();
+
+      // Restore default mock
+      globalThis.fetch = mockFetch;
     });
 
     it('should handle container registry token requests', async () => {
@@ -215,32 +327,44 @@ describe('Container Registry Support', () => {
 
   describe('Container Registry Platform Support', () => {
     const containerRegistries = [
-      { name: 'Quay.io', prefix: 'cr/quay', expectedStatus: [200, 301, 302, 401, 404] },
-      {
-        name: 'Google Container Registry',
-        prefix: 'cr/gcr',
-        expectedStatus: [200, 301, 302, 401, 404]
-      },
-      {
-        name: 'Microsoft Container Registry',
-        prefix: 'cr/mcr',
-        expectedStatus: [200, 301, 302, 401, 404]
-      },
-      {
-        name: 'GitHub Container Registry',
-        prefix: 'cr/ghcr',
-        expectedStatus: [200, 301, 302, 401, 404]
-      },
-      { name: 'Amazon ECR Public', prefix: 'cr/ecr', expectedStatus: [200, 301, 302, 401, 404] }
+      { name: 'Quay.io', prefix: 'cr/quay' },
+      { name: 'Google Container Registry', prefix: 'cr/gcr' },
+      { name: 'Microsoft Container Registry', prefix: 'cr/mcr' },
+      { name: 'GitHub Container Registry', prefix: 'cr/ghcr' },
+      { name: 'Amazon ECR Public', prefix: 'cr/ecr' },
+      { name: 'Kubernetes Registry', prefix: 'cr/k8s' },
+      { name: 'GitLab Registry', prefix: 'cr/gitlab' },
+      { name: 'NVIDIA Registry', prefix: 'cr/nvcr' }
     ];
 
-    containerRegistries.forEach(({ name, prefix, expectedStatus }) => {
+    containerRegistries.forEach(({ name, prefix }) => {
       it(`should support ${name} registry`, async () => {
         const testUrl = `https://example.com/${prefix}/v2/test/image/manifests/latest`;
         const response = await SELF.fetch(testUrl, { method: 'HEAD' });
 
-        expect(expectedStatus).toContain(response.status);
+        // With mocked fetch, valid registries should return 200 (not a 400 routing error)
+        expect(response.status).toBe(200);
       });
+    });
+  });
+
+  describe('Root Page', () => {
+    it('should render the home page at the root path', async () => {
+      const response = await SELF.fetch('https://example.com/');
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toContain('text/html');
+      const body = await response.text();
+      expect(body).toContain('Docker 镜像代理服务');
+      expect(body).toContain('example.com');
+    });
+
+    it('should use the request hostname in usage examples', async () => {
+      const response = await SELF.fetch('https://ghcr.example.com/');
+
+      const body = await response.text();
+      expect(body).toContain('ghcr.example.com');
+      expect(body).toContain('docker.example.com');
     });
   });
 });

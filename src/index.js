@@ -8,7 +8,7 @@ import { transformPath, resolveDomainPlatform, DOMAIN_PREFIX_MAP } from './confi
  * @returns {boolean} True if this is a container registry operation
  */
 function isDockerRequest(request, url) {
-  if (url.pathname.startsWith('/v2/')) {
+  if (url.pathname === '/v2' || url.pathname.startsWith('/v2/')) {
     return true;
   }
 
