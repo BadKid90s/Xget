@@ -199,13 +199,14 @@ export function transformPath(path, platformKey) {
     '/'
   );
 
+  // Strip a redundant registry hostname prefix first, so that subsequent
+  // normalization (e.g. Docker Hub official image -> library/<name>) sees
+  // the real repository path. e.g. ghcr.example.com/ghcr.io/user/repo -> /v2/user/repo
+  transformedPath = stripRegistryDomainPrefix(transformedPath, platformKey);
+
   if (platformKey === 'cr-docker') {
     transformedPath = normalizeDockerHubImagePath(transformedPath);
   }
-
-  // Strip a redundant registry hostname prefix from the repository path,
-  // e.g. ghcr.example.com/ghcr.io/user/repo -> /v2/user/repo
-  transformedPath = stripRegistryDomainPrefix(transformedPath, platformKey);
 
   return transformedPath;
 }

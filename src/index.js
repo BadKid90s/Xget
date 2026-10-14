@@ -123,14 +123,20 @@ async function fetchToken(wwwAuthenticate, scope, authorization) {
 }
 
 /**
- * Creates an unauthorized response for the container registry, pointing the
- * WWW-Authenticate realm back to this worker so the client can authenticate.
+ * Returns a 401 response that passes through the upstream registry's real
+ * WWW-Authenticate challenge so the Docker client can authenticate directly.
+ * Falls back to a generic challenge only when no upstream header is available.
  * @param {URL} url - Request URL
- * @returns {Response} Unauthorized response
+ * @param {string|null} upstreamAuthenticate - The upstream WWW-Authenticate header
+ * @returns {Response} 401 response
  */
-function responseUnauthorized(url) {
+function responseUnauthorized(url, upstreamAuthenticate) {
   const headers = new Headers();
-  headers.set('WWW-Authenticate', `Bearer realm="https://${url.hostname}/v2/auth",service="Xget"`);
+  if (upstreamAuthenticate) {
+    headers.set('WWW-Authenticate', upstreamAuthenticate);
+  } else {
+    headers.set('WWW-Authenticate', `Bearer realm="https://${url.hostname}/v2/auth",service="registry"`);
+  }
   return new Response(JSON.stringify({ message: 'UNAUTHORIZED' }), {
     status: 401,
     headers
@@ -139,29 +145,21 @@ function responseUnauthorized(url) {
 
 /**
  * Infers the repository scope (e.g. `repository:library/nginx:pull`) from the
- * request path. Supports all supported path forms.
- * @param {URL} url - Request URL
- * @param {string} platform - Resolved platform key
+ * transformed target path. The path should already have the platform prefix
+ * and any redundant registry domain stripped, and start with `/v2/`.
+ * @param {string} targetPath - The upstream target path, e.g. "/v2/library/nginx/manifests/latest"
  * @returns {string} The inferred scope, or empty string
  */
-function inferScope(url, platform) {
-  const pathParts = url.pathname.split('/').filter(Boolean);
-  let scopeStart = pathParts[0] === 'v2' ? 1 : 0;
-  if (pathParts[scopeStart] === 'cr') {
-    scopeStart += 2;
-  }
-  if (pathParts[scopeStart] === 'v2') {
-    scopeStart += 1;
-  }
+function inferScope(targetPath) {
+  const pathParts = targetPath.split('/').filter(Boolean);
+  // targetPath always starts with /v2/, so skip it
+  const scopeStart = 1;
   const opIndex = pathParts.findIndex(
     (segment, index) =>
       index >= scopeStart && ['manifests', 'blobs', 'tags', 'referrers'].includes(segment)
   );
   if (opIndex > scopeStart) {
-    let repoName = pathParts.slice(scopeStart, opIndex).join('/');
-    if (platform === 'cr-docker' && !repoName.includes('/')) {
-      repoName = `library/${repoName}`;
-    }
+    const repoName = pathParts.slice(scopeStart, opIndex).join('/');
     return `repository:${repoName}:pull`;
   }
   return '';
@@ -335,7 +333,7 @@ async function handleRequest(request, env, _ctx) {
           if (authenticateStr) {
             try {
               const wwwAuthenticate = parseAuthenticate(authenticateStr);
-              const scope = inferScope(url, platform);
+              const scope = inferScope(finalTargetPath);
               const tokenResponse = await fetchToken(wwwAuthenticate, scope, '');
               if (tokenResponse.ok) {
                 const tokenData = await tokenResponse.json();
@@ -356,7 +354,9 @@ async function handleRequest(request, env, _ctx) {
               console.warn('Token fetch failed:', error);
             }
           }
-          return responseUnauthorized(url);
+          // Pass through the upstream's real WWW-Authenticate so the Docker
+          // client can authenticate directly (e.g. for private repos).
+          return responseUnauthorized(url, authenticateStr);
         }
 
         // Don't retry on client errors
