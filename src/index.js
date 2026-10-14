@@ -168,6 +168,42 @@ function inferScope(url, platform) {
 }
 
 /**
+ * Returns the HTML home page shown when the root path is visited in a browser.
+ * @param {string} hostname - The request hostname, used for usage examples
+ * @returns {string} HTML content
+ */
+function getHomePage(hostname) {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docker 镜像代理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.6; }
+    h1 { font-size: 28px; }
+    code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+    pre { background: #f4f4f5; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    .host { color: #2563eb; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Docker 镜像代理服务</h1>
+  <p>这是一个基于 Cloudflare Workers 的容器镜像仓库代理，用于加速公共镜像仓库的拉取。</p>
+  <h2>使用示例</h2>
+  <pre><code># 当前域名（<span class="host">${hostname}</span>）
+docker pull ${hostname}/nginx:latest
+
+# 其他仓库通过子域名访问
+docker pull ghcr.${hostname}/nginxinc/nginx-unprivileged:latest
+docker pull k8s.${hostname}/pause:3.9</code></pre>
+  <p>支持的仓库子域名：docker / ghcr / gcr / quay / mcr / ecr / k8s / gitlab / nvcr 等。</p>
+  <p>浏览器访问此页仅作说明，镜像拉取请使用 <code>docker pull</code> 命令。</p>
+</body>
+</html>`;
+}
+
+/**
  * Handles incoming container registry requests with retries and authentication.
  * @param {Request} request - The incoming request
  * @param {Object} env - Environment variables
@@ -192,8 +228,10 @@ async function handleRequest(request, env, _ctx) {
     }
 
     if (url.pathname === '/' || url.pathname === '') {
-      const HOME_PAGE_URL = 'https://github.com/xixu-me/Xget';
-      return Response.redirect(HOME_PAGE_URL, 302);
+      return new Response(getHomePage(url.hostname), {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      });
     }
 
     const validation = validateRequest(request, url, config);
