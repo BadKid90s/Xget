@@ -1,5 +1,5 @@
 import { CONFIG, createConfig } from './config/index.js';
-import { transformPath, resolveDomainPlatform } from './config/platforms.js';
+import { transformPath, resolveDomainPlatform, DOMAIN_PREFIX_MAP } from './config/platforms.js';
 
 /**
  * Detects if a request is a container registry operation.
@@ -167,36 +167,160 @@ function inferScope(targetPath) {
 
 /**
  * Returns the HTML home page shown when the root path is visited in a browser.
+ * Includes the supported registry table and usage instructions from the README,
+ * with all example domains dynamically replaced by the real request hostname.
  * @param {string} hostname - The request hostname, used for usage examples
  * @returns {string} HTML content
  */
 function getHomePage(hostname) {
+  // Determine the base domain: if the leftmost label is a known registry prefix,
+  // strip it; otherwise use the hostname as-is.
+  const label = hostname.split('.')[0].toLowerCase();
+  const isRegistrySubdomain = Boolean(DOMAIN_PREFIX_MAP[label]);
+  const baseDomain = isRegistrySubdomain
+    ? hostname.split('.').slice(1).join('.')
+    : hostname;
+  // The domain used for path-prefix / registry-mirror examples (the one the user is visiting)
+  const currentDomain = hostname;
+  // Helper to build a subdomain example
+  const sub = (prefix) => `${prefix}.${baseDomain}`;
+
+  const registries = [
+    { prefixes: ['docker', 'dockerhub', 'hub'], path: 'cr/docker', source: 'Docker Hub (registry-1.docker.io)' },
+    { prefixes: ['ghcr'], path: 'cr/ghcr', source: 'GitHub Container Registry' },
+    { prefixes: ['gcr'], path: 'cr/gcr', source: 'Google Container Registry' },
+    { prefixes: ['quay'], path: 'cr/quay', source: 'Quay.io' },
+    { prefixes: ['mcr'], path: 'cr/mcr', source: 'Microsoft Container Registry' },
+    { prefixes: ['ecr'], path: 'cr/ecr', source: 'Amazon ECR Public' },
+    { prefixes: ['k8s'], path: 'cr/k8s', source: 'Kubernetes Registry (registry.k8s.io)' },
+    { prefixes: ['gitlab'], path: 'cr/gitlab', source: 'GitLab Container Registry' },
+    { prefixes: ['nvcr'], path: 'cr/nvcr', source: 'NVIDIA Container Registry' },
+    { prefixes: ['redhat'], path: 'cr/redhat', source: 'Red Hat Registry' },
+    { prefixes: ['oracle'], path: 'cr/oracle', source: 'Oracle Container Registry' },
+    { prefixes: ['cloudsmith'], path: 'cr/cloudsmith', source: 'Cloudsmith' },
+    { prefixes: ['digitalocean'], path: 'cr/digitalocean', source: 'DigitalOcean Registry' },
+    { prefixes: ['vmware'], path: 'cr/vmware', source: 'VMware Registry' },
+    { prefixes: ['heroku'], path: 'cr/heroku', source: 'Heroku Registry' },
+    { prefixes: ['suse'], path: 'cr/suse', source: 'SUSE Registry' },
+    { prefixes: ['opensuse'], path: 'cr/opensuse', source: 'openSUSE Registry' },
+    { prefixes: ['gitpod'], path: 'cr/gitpod', source: 'Gitpod Registry' }
+  ];
+
+  const tableRows = registries.map(r => `
+    <tr>
+      <td><code>${r.prefixes.map(p => `<span class="tag">${p}</span>`).join(' ')}</code></td>
+      <td><code>${r.path}</code></td>
+      <td>${r.source}</td>
+    </tr>`).join('');
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Docker 镜像代理</title>
+  <title>Docker 镜像代理服务</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 20px; color: #1a1a1a; line-height: 1.6; }
-    h1 { font-size: 28px; }
-    code { background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
-    pre { background: #f4f4f5; padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 860px; margin: 40px auto; padding: 0 20px;
+      color: #1a1a1a; line-height: 1.7; background: #fafafa;
+    }
+    h1 { font-size: 26px; margin-bottom: 8px; }
+    h2 { font-size: 20px; margin-top: 36px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
+    h3 { font-size: 16px; margin-top: 24px; }
+    .intro { color: #4b5563; margin-bottom: 24px; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: "SF Mono", Menlo, Consolas, monospace; }
+    pre { background: #1e293b; color: #e2e8f0; padding: 16px 18px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+    pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+    th { background: #f9fafb; font-weight: 600; }
+    tr:nth-child(even) td { background: #fcfcfd; }
+    .tag { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 1px 8px; border-radius: 10px; font-size: 12px; margin: 1px; }
     .host { color: #2563eb; font-weight: 600; }
+    .note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 10px 14px; margin: 16px 0; border-radius: 4px; font-size: 14px; }
   </style>
 </head>
 <body>
   <h1>Docker 镜像代理服务</h1>
-  <p>这是一个基于 Cloudflare Workers 的容器镜像仓库代理，用于加速公共镜像仓库的拉取。</p>
-  <h2>使用示例</h2>
-  <pre><code># 当前域名（<span class="host">${hostname}</span>）
-docker pull ${hostname}/nginx:latest
+  <p class="intro">基于 Cloudflare Workers 的容器镜像仓库代理，用于加速公共镜像仓库的拉取。支持 Docker Hub、GHCR、K8s、GCR、Quay 等 18 个公共镜像仓库。</p>
 
-# 其他仓库通过子域名访问
-docker pull ghcr.${hostname}/nginxinc/nginx-unprivileged:latest
-docker pull k8s.${hostname}/pause:3.9</code></pre>
-  <p>支持的仓库子域名：docker / ghcr / gcr / quay / mcr / ecr / k8s / gitlab / nvcr 等。</p>
-  <p>浏览器访问此页仅作说明，镜像拉取请使用 <code>docker pull</code> 命令。</p>
+  <h2>📦 支持的镜像仓库</h2>
+  <table>
+    <thead>
+      <tr><th>子域名</th><th>路径前缀</th><th>镜像源</th></tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+
+  <h2>🚀 使用方式</h2>
+
+  <h3>子域名前缀模式（推荐）</h3>
+  <p>每个镜像仓库对应一个子域名，拉取时把仓库域名替换为对应子域名：</p>
+  <pre><code># Docker Hub 官方镜像
+docker pull ${sub('docker')}/nginx:latest
+
+# Docker Hub 用户镜像
+docker pull ${sub('docker')}/bitnami/redis:latest
+
+# GHCR
+docker pull ${sub('ghcr')}/nginxinc/nginx-unprivileged:latest
+
+# Kubernetes
+docker pull ${sub('k8s')}/pause:3.9
+
+# GCR
+docker pull ${sub('gcr')}/distroless/base:latest
+
+# 也支持路径中带原仓库域名
+docker pull ${sub('ghcr')}/ghcr.io/nginxinc/nginx-unprivileged:latest</code></pre>
+
+  <h3>路径前缀模式</h3>
+  <p>使用 <code>/cr/&lt;registry&gt;/</code> 前缀指定目标仓库：</p>
+  <pre><code>docker pull ${currentDomain}/cr/docker/nginx:latest
+docker pull ${currentDomain}/cr/ghcr/nginxinc/nginx-unprivileged:latest
+docker pull ${currentDomain}/cr/k8s/pause:3.9</code></pre>
+
+  <h3>Docker Hub 镜像加速（registry-mirrors）</h3>
+  <p>配置 Docker daemon 使用本服务作为 Docker Hub 镜像加速器，之后 <code>docker pull nginx:latest</code> 等命令自动走代理。</p>
+  <p>编辑 <code>/etc/docker/daemon.json</code>：</p>
+  <pre><code>{
+  "registry-mirrors": ["https://${currentDomain}"]
+}</code></pre>
+  <p>重启 Docker：</p>
+  <pre><code>sudo systemctl restart docker</code></pre>
+
+  <h3>Podman</h3>
+  <pre><code># 直接拉取
+podman pull ${sub('docker')}/nginx:latest
+
+# 配置 registries.conf 加速 Docker Hub
+# /etc/containers/registries.conf
+[[registry]]
+location = "docker.io"
+prefix = "docker.io"
+[[registry.mirror]]
+location = "${currentDomain}"</code></pre>
+
+  <h3>containerd</h3>
+  <p>编辑 <code>/etc/containerd/config.toml</code>：</p>
+  <pre><code>[plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+  endpoint = ["https://${currentDomain}"]
+
+[plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+  endpoint = ["https://${sub('k8s')}"]</code></pre>
+
+  <h3>Kubernetes</h3>
+  <p>直接在 Pod 定义中使用代理地址，或配置 containerd 镜像加速后使用原始镜像名：</p>
+  <pre><code>spec:
+  containers:
+    - name: nginx
+      image: ${sub('docker')}/nginx:latest</code></pre>
+
+  <div class="note">
+    当前访问域名：<span class="host">${hostname}</span>。子域名示例基于基础域名 <span class="host">${baseDomain}</span>，请确保已配置对应的 DNS 泛解析记录。
+  </div>
 </body>
 </html>`;
 }
