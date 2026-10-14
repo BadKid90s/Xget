@@ -84,6 +84,68 @@ export function resolveDomainPlatform(hostname) {
 }
 
 /**
+ * Maps a platform key to the list of registry hostnames that may appear as a
+ * redundant prefix in the image repository path (e.g. `ghcr.io/user/repo`).
+ *
+ * When a user pulls `ghcr.example.com/ghcr.io/user/repo:tag`, the `ghcr.io/`
+ * segment is redundant because the subdomain already selects ghcr.io. This map
+ * lets {@link stripRegistryDomainPrefix} remove it so the upstream request
+ * targets the correct repository.
+ *
+ * @type {Object.<string, string[]>}
+ */
+const REGISTRY_DOMAIN_ALIASES = {
+  'cr-docker': ['docker.io', 'registry-1.docker.io', 'index.docker.io'],
+  'cr-ghcr': ['ghcr.io'],
+  'cr-gcr': ['gcr.io'],
+  'cr-quay': ['quay.io'],
+  'cr-mcr': ['mcr.microsoft.com'],
+  'cr-ecr': ['public.ecr.aws', 'ecr.amazonaws.com'],
+  'cr-gitlab': ['registry.gitlab.com'],
+  'cr-redhat': ['registry.redhat.io'],
+  'cr-oracle': ['container-registry.oracle.com'],
+  'cr-cloudsmith': ['docker.cloudsmith.io'],
+  'cr-digitalocean': ['registry.digitalocean.com'],
+  'cr-vmware': ['projects.registry.vmware.com'],
+  'cr-k8s': ['registry.k8s.io', 'k8s.gcr.io'],
+  'cr-heroku': ['registry.heroku.com'],
+  'cr-suse': ['registry.suse.com'],
+  'cr-opensuse': ['registry.opensuse.org'],
+  'cr-gitpod': ['registry.gitpod.io'],
+  'cr-nvcr': ['nvcr.io']
+};
+
+/**
+ * Removes a redundant registry hostname prefix from the repository path.
+ *
+ * For example, with platform `cr-ghcr`, the path
+ * `/v2/ghcr.io/user/repo/manifests/latest` becomes
+ * `/v2/user/repo/manifests/latest`.
+ *
+ * @param {string} path - The path (platform prefix already removed), may start with /v2/
+ * @param {string} platformKey - The platform key, e.g. "cr-ghcr"
+ * @returns {string} The path with the registry domain prefix stripped if present
+ */
+export function stripRegistryDomainPrefix(path, platformKey) {
+  const aliases = REGISTRY_DOMAIN_ALIASES[platformKey];
+  if (!aliases || aliases.length === 0) {
+    return path;
+  }
+
+  const segments = path.split('/');
+  // The registry domain appears either right after an optional leading /v2/ segment,
+  // or at the very start of the path.
+  const start = segments[1] === 'v2' ? 2 : (segments[0] === '' ? 1 : 0);
+
+  if (aliases.includes(segments[start])) {
+    segments.splice(start, 1);
+    return segments.join('/');
+  }
+
+  return path;
+}
+
+/**
  * Container registry API operations that follow the repository name in a path.
  * @type {string[]}
  */
@@ -140,6 +202,10 @@ export function transformPath(path, platformKey) {
   if (platformKey === 'cr-docker') {
     transformedPath = normalizeDockerHubImagePath(transformedPath);
   }
+
+  // Strip a redundant registry hostname prefix from the repository path,
+  // e.g. ghcr.example.com/ghcr.io/user/repo -> /v2/user/repo
+  transformedPath = stripRegistryDomainPrefix(transformedPath, platformKey);
 
   return transformedPath;
 }
