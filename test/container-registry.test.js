@@ -165,13 +165,21 @@ describe('Container Registry Support', () => {
   });
 
   describe('Container Registry Error Handling', () => {
-    it('should reject non-cr prefixed Docker requests', async () => {
+    it('should reject requests without a supported container registry prefix', async () => {
       const response = await SELF.fetch(
-        'https://example.com/v2/nginxinc/nginx-unprivileged/manifests/latest'
+        'https://example.com/random/invalid/path'
       );
 
       expect(response.status).toBe(400);
       expect(await response.text()).toContain('container registry requests must use /cr/ prefix');
+    });
+
+    it('should reject unknown container registry keys', async () => {
+      const response = await SELF.fetch(
+        'https://example.com/cr/unknown-registry/v2/foo/manifests/latest'
+      );
+
+      expect(response.status).toBe(400);
     });
   });
 
